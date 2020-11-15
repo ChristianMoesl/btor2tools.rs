@@ -1,0 +1,57 @@
+name: Test
+
+on:
+  push:
+  workflow_dispatch:
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ${{ matrix.os }} 
+    strategy:
+      matrix: 
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+            fetch-depth: 0
+            persist-credentials: false
+            submodules: true
+
+      - name: Install Rust Stable
+        uses: actions-rs/toolchain@v1
+        with:
+            profile: minimal
+            toolchain: stable
+            override: true
+
+      - name: Check Format
+        uses: actions-rs/cargo@v1
+        with:
+            command: fmt
+            args: -- --check
+
+      - name: Clippy
+        uses: actions-rs/clippy-check@v1
+        with:
+            token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+            command: build
+
+      - name: Doc
+        uses: actions-rs/cargo@v1
+        with:
+            command: doc
+
+      - name: Test
+        uses: actions-rs/cargo@v1
+        with:
+            command: test

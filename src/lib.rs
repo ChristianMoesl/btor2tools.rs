@@ -1,7 +1,29 @@
+//! The Btor2Tools package provides a generic parser and tools for the BTOR2 format.
+//!
+//! This crate provides high-level FFI bindings for the [C Btor2Tools package](https://github.com/Boolector/btor2tools).
+//! For a more detailed description of the BTOR2 format, refer to BTOR2, BtorMC and Boolector 3.0. Aina Niemetz, Mathias Preiner, Clifford Wolf, and Armin Biere. CAV 2018.
+//!
+//! # Example
+//!
+//! ```no_run
+//! use std::path::Path;
+//! use btor2tools::Btor2Parser;
+//!
+//! let btor2_file = Path::new("example.btor2");
+//!
+//! Btor2Parser::new()
+//!     .read_lines(&btor2_file)
+//!     .unwrap() // ignore parser error
+//!     .for_each(|line| {
+//!         // print every parsed line
+//!         println!("{:?}", line);
+//!     });
+//! ```
+
 use btor2tools_sys::{
     btor2parser_delete, btor2parser_error, btor2parser_iter_init, btor2parser_iter_next,
-    btor2parser_max_id, btor2parser_new, btor2parser_read_lines, fclose, fopen,
-    Btor2Line as CBtor2Line, Btor2LineIterator as CBtor2LineIterator, Btor2Parser as CBtor2Parser,
+    btor2parser_new, btor2parser_read_lines, fclose, fopen, Btor2Line as CBtor2Line,
+    Btor2LineIterator as CBtor2LineIterator, Btor2Parser as CBtor2Parser,
     Btor2SortTag as CBtor2SortTag, Btor2Tag as CBtor2Tag,
 };
 use std::{
@@ -25,6 +47,8 @@ impl Btor2Parser {
         }
     }
 
+    /// Parses a Btor2 file and returns an iterator to all every formatted line on success.
+    /// On failure, the error includes the line number, where the error occured.
     pub fn read_lines<P>(&mut self, file: P) -> Result<Btor2LineIterator, Btor2ParserError>
     where
         P: AsRef<Path>,
@@ -45,10 +69,6 @@ impl Btor2Parser {
                 Ok(Btor2LineIterator::new(self))
             }
         }
-    }
-
-    pub fn max_id(&self) -> i64 {
-        unsafe { btor2parser_max_id(self.internal) }
     }
 }
 
@@ -126,18 +146,22 @@ impl<'parser> Btor2Line<'parser> {
         }
     }
 
+    /// positive id (non zero)
     pub fn id(&self) -> i64 {
         unsafe { (*self.internal).id }
     }
 
+    /// line number in original file
     pub fn lineno(&self) -> i64 {
         unsafe { (*self.internal).lineno }
     }
 
+    /// name in ASCII: "and", "add",...
     pub fn name(&self) -> &CStr {
         unsafe { CStr::from_ptr((*self.internal).name) }
     }
 
+    /// same as name but encoded as enum
     pub fn tag(&self) -> Btor2Tag {
         unsafe { Btor2Tag::from((*self.internal).tag) }
     }
@@ -149,22 +173,27 @@ impl<'parser> Btor2Line<'parser> {
         }
     }
 
+    /// non zero if initialized or has next
     pub fn init(&self) -> i64 {
         unsafe { (*self.internal).init }
     }
 
+    /// non zero if initialized or has next
     pub fn next(&self) -> i64 {
         unsafe { (*self.internal).next }
     }
 
+    /// non zero for const, constd, consth
     pub fn constant(&self) -> Option<&CStr> {
         wrap_nullable_c_string(unsafe { (*self.internal).constant })
     }
 
+    /// optional for: var array state input
     pub fn symbol(&self) -> Option<&CStr> {
         wrap_nullable_c_string(unsafe { (*self.internal).symbol })
     }
 
+    // non zero ids
     pub fn args(&self) -> &[i64] {
         unsafe { slice::from_raw_parts((*self.internal).args, (*self.internal).nargs as usize) }
     }
@@ -238,6 +267,12 @@ pub enum Btor2SortContent {
     Bitvec { width: u32 },
 }
 
+/// BTOR2 tags can be used for fast(er) traversal and operations on BTOR2
+/// format lines, e.g., in a switch statement in client code.
+/// Alternatively, client code can use the name of the BTOR2 tag, which is a C
+/// string (redundantly) contained in the format line. Note that this requires
+/// string comparisons and is therefore slower even if client code uses an
+/// additional hash table.
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub enum Btor2Tag {

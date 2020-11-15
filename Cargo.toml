@@ -1,10 +1,15 @@
 [package]
-name = "btor2tools"
-version = "0.1.0"
-authors = ["Christian Mösl <christian.moesl@live.at>"]
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+name          = "btor2tools"
+description   = "High-level bindings for the btor2tools package"
+authors       = ["Christian Mösl <christian.moesl@live.at>"]
+license       = "MIT"
+categories    = ["api-bindings"]
+keywords      = ["ffi", "btor2", "parser"]
+documentation = "https://docs.rs/btor2tools"
+repository    = "https://github.com/ChristianMoesl/btor2tools.rs"
+homepage      = "https://github.com/ChristianMoesl/btor2tools.rs"
+edition       = "2018"
+version       = "0.1.0"
 
 [dependencies]
-btor2tools-sys = { git = "https://github.com/ChristianMoesl/btor2tools-sys", branch = "main" }
+btor2tools-sys = "~1.0.0"
