@@ -9,7 +9,7 @@ documentation = "https://docs.rs/btor2tools"
 repository    = "https://github.com/ChristianMoesl/btor2tools.rs"
 homepage      = "https://github.com/ChristianMoesl/btor2tools.rs"
 edition       = "2018"
-version       = "0.1.0"
+version       ="1.0.0"
 
 [dependencies]
 btor2tools-sys = "~1.0.0"
