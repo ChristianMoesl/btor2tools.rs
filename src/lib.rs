@@ -97,6 +97,12 @@ impl Btor2Parser {
     }
 }
 
+impl Default for Btor2Parser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Drop for Btor2Parser {
     fn drop(&mut self) {
         unsafe { btor2parser_delete(self.internal) }
