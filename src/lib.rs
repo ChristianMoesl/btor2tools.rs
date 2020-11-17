@@ -28,13 +28,14 @@ use btor2tools_sys::{
 };
 use std::{
     convert::From,
-    ffi::{CStr, CString, NulError},
+    ffi::{CStr, CString},
     fmt,
     marker::PhantomData,
     os::raw::c_char,
     path::Path,
     slice,
 };
+use thiserror::Error;
 
 pub struct Btor2Parser {
     internal: *mut CBtor2Parser,
@@ -54,19 +55,43 @@ impl Btor2Parser {
         P: AsRef<Path>,
     {
         unsafe {
-            let c_file_path = CString::new(file.as_ref().to_str().unwrap())?;
-            let c_file_mode = CString::new("r")?;
+            let file_path = if let Some(p) = file.as_ref().to_str() {
+                p
+            } else {
+                return Err(Btor2ParserError::InvalidPathEncoding(String::from(
+                    "Path is not UTF-8 encoded",
+                )));
+            };
+
+            let c_file_path = CString::new(file_path).map_err(|_| {
+                Btor2ParserError::InvalidPathEncoding(String::from(
+                    "Path contains a illegal 0 byte",
+                ))
+            })?;
+
+            let c_file_mode = CString::new("r").unwrap();
 
             let file = fopen(c_file_path.as_ptr(), c_file_mode.as_ptr());
 
-            let result = btor2parser_read_lines(self.internal, file);
-
-            fclose(file);
-
-            if result == 0 {
-                Err(Btor2ParserError::new(btor2parser_error(self.internal)))
+            if file.is_null() {
+                Err(Btor2ParserError::CouldNotOpenFile(file_path.to_owned()))
             } else {
-                Ok(Btor2LineIterator::new(self))
+                let result = btor2parser_read_lines(self.internal, file);
+
+                fclose(file);
+
+                if result == 0 {
+                    let c_msg = CStr::from_ptr(btor2parser_error(self.internal));
+
+                    Err(Btor2ParserError::SyntaxError(
+                        c_msg
+                            .to_str()
+                            .expect("Btor2tools do not use valid UTF-8 strings")
+                            .to_owned(),
+                    ))
+                } else {
+                    Ok(Btor2LineIterator::new(self))
+                }
             }
         }
     }
@@ -78,27 +103,16 @@ impl Drop for Btor2Parser {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Btor2ParserError {
-    details: String,
-}
+#[derive(Error, Debug)]
+pub enum Btor2ParserError {
+    #[error("Could not open file: {0}")]
+    CouldNotOpenFile(String),
 
-impl Btor2ParserError {
-    fn new(str: *const c_char) -> Self {
-        unsafe {
-            Self {
-                details: CStr::from_ptr(str).to_str().unwrap().to_owned(),
-            }
-        }
-    }
-}
+    #[error("BTOR2 syntax error in {0}")]
+    SyntaxError(String),
 
-impl From<NulError> for Btor2ParserError {
-    fn from(e: NulError) -> Self {
-        Self {
-            details: e.to_string(),
-        }
-    }
+    #[error("File path violates encoding rules: {0}")]
+    InvalidPathEncoding(String),
 }
 
 #[derive(Copy, Clone)]

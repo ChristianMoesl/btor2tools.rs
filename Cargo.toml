@@ -13,3 +13,4 @@ version       ="1.0.0"
 
 [dependencies]
 btor2tools-sys = "~1.0.0"
+thiserror = "~1.0.22"
